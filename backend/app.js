@@ -5,6 +5,9 @@ const app = express();
 const cookieparser = require('cookie-parser'); //importing cookie-parser to parse cookies
 const dbConnect = require('./dbs/dbConnect'); //importing dbConnect function from dbConnect.js
 const userRoutes = require('./routes/userRoutes'); //importing userRoutes from userRoutes.js
+const riderRoutes = require('./routes/riderRoutes'); //importing riderRoutes from riderRoutes.js
+
+
 //calling dbConnect function to connect to the database
 dbConnect();
 
@@ -17,6 +20,6 @@ app.get('/', (req, res) => {
 });
 
 app.use('/users', userRoutes); //using userRoutes for /user endpoint
-
+app.use('/riders',riderRoutes);
 
 module.exports = app; //exporting the app to use in server.js
