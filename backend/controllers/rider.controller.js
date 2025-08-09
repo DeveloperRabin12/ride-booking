@@ -6,6 +6,7 @@ const BlackListToken = require('../models/blackListTokens.model'); //importing b
 module.exports.registerRider = async (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
+      console.log("Validation failed:", errors.array());
     return res.status(422).json({ errors: errors.array() });
   }
  console.log(req.body); //logging the request body

@@ -1,6 +1,13 @@
+
 import React from 'react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
+import axios from 'axios'
+import {UserDataContext} from '../context/UserContext'
+import { useContext } from 'react'
+import userimg from '/src/assets/images/user.png';
+
 
 const UserRegister = () => {
 
@@ -8,29 +15,42 @@ const UserRegister = () => {
   const [password, setPassword] = useState('')
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
+  
   const [userData, setUserData] = useState({})
 
-  const submitHandler = (e) =>{
+  const navigate = useNavigate()
+  const {user, setUser} = useContext(UserDataContext)
+
+
+  const submitHandler = async (e) =>{
     e.preventDefault()
-    setUserData({
+    const newUser ={
       email: email,
-      password: password,
-      username:{
-        firstName: firstName,
-        lastName: lastName
+      password: password, 
+      fullname:{
+        firstname: firstName,
+        lastname: lastName
       }
-    })
+    }
+
+    const response = await axios.post(`${import.meta.env.VITE_BASE_URL}/users/register`,newUser)
+    if(response.status === 201){
+      const data = response.data
+      setUser(data.user)
+      localStorage.setItem('token', data.token)
+      navigate('/login')
+    }
     setEmail('')
     setPassword('')
     setFirstName('')
     setLastName('')
-    console.log(userData)
   }
 
   return (
     <div className='p-7 h-screen flex flex-col justify-between'>
+     
       <div>
-      <img className=' w-20 ' src="https://imgs.search.brave.com/yfhjvPmbpij5DnmuCDlZMi4F2HgTGPqGRKLV3SCp3LM/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly9jZG4u/ZHJpYmJibGUuY29t/L3VzZXJ1cGxvYWQv/NDExMDE0MjcvZmls/ZS9vcmlnaW5hbC0y/YTY2NmQxMzUzOWRh/MzdkNzg1ZmVmODAy/ZWIyOTk2Ni5qcGc_/cmVzaXplPTQwMHgw" alt="" />
+      <img className=' w-20 ' src={`${userimg}`} alt="" />
             <form onSubmit={(e)=>{
               submitHandler(e)
             }} action="" className='mt-10'>
@@ -83,7 +103,7 @@ const UserRegister = () => {
 
       <div>
 
-        <Link to='/riderLogin' className = ' w-full flex justify-center items-center bg-blue-600 text-white  py-3 rounded-lg'>Log In as rider</Link>
+        {/* <Link to='/riderLogin' className = ' w-full flex justify-center items-center bg-blue-600 text-white  py-3 rounded-lg'>Log In Driver</Link> */}
       </div>
     
    </div>

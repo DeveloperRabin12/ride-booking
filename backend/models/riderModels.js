@@ -51,10 +51,10 @@ const riderSchema = new mongoose.Schema({
     },
 
     location:{
-        latitude:{
+        lat:{
             type: Number,
         },
-        longitude:{
+        lng:{
             type: Number,
         },
     }

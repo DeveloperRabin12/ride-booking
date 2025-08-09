@@ -1,27 +1,42 @@
 import React from 'react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom' 
+import { RiderDataContext } from '../context/RiderContext'
+import { useContext } from 'react'
+import { useNavigate } from 'react-router-dom'
+import axios from 'axios'
+import riderimg from '/src/assets/images/rider.png';
 
 const RiderLogin = () => {
    const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
+
+    const {rider, setRider} = useContext(RiderDataContext)
+    const navigate = useNavigate()
+
   
-    const [userData, setUserData] = useState({})
-  
-    const submitHandler = (e) =>{
+    const submitHandler = async (e) =>{
       e.preventDefault()
-      setUserData({
+      const rider =  {
         email: email,
-        password: password})
-  
-      console.log(userData)
+        password: password
+      }
+      const response = await axios.post(`${import.meta.env.VITE_BASE_URL}/riders/login`,rider)
+      if(response.status === 200){
+        const data = response.data
+        setRider(data.rider)
+        localStorage.setItem('token', data.token)
+        navigate('/riderHome')
+      }
+     
       setEmail('')
       setPassword('')
     }
   return (
     <div className='p-7 h-screen flex flex-col justify-between'>
+
     <div>
-    <img className=' w-20 ' src="https://imgs.search.brave.com/yfhjvPmbpij5DnmuCDlZMi4F2HgTGPqGRKLV3SCp3LM/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly9jZG4u/ZHJpYmJibGUuY29t/L3VzZXJ1cGxvYWQv/NDExMDE0MjcvZmls/ZS9vcmlnaW5hbC0y/YTY2NmQxMzUzOWRh/MzdkNzg1ZmVmODAy/ZWIyOTk2Ni5qcGc_/cmVzaXplPTQwMHgw" alt="" />
+    <img className=' w-20 ' src={`${riderimg}`} alt="" />
           <form onSubmit={(e)=>{
             submitHandler(e)
           }} action="" className='mt-10'>
@@ -53,7 +68,7 @@ const RiderLogin = () => {
 
     <div>
 
-      <Link to='/login' className = ' w-full flex justify-center items-center bg-blue-600 text-white  py-3 rounded-lg'>Looking for Ride?</Link>
+      <Link to='/login' className = ' w-full flex justify-center items-center bg-green-600 text-white  py-3 rounded-lg'>Passenger Mode</Link>
     </div>
   
  </div>
