@@ -61,6 +61,9 @@ const riderSchema = new mongoose.Schema({
 
 })
 
+// Create a 2dsphere index for geospatial queries
+riderSchema.index({ location: '2dsphere' });
+
 riderSchema.methods.generateAuthToken = function () {
      const token = jwt.sign({_id: this._id }, process.env.SECRET_KEY,{expiresIn:'24h'})
         return token;

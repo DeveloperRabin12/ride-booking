@@ -56,11 +56,12 @@ function initializeSocket(server) {
 
 const sendMessageToSocketId=(socketId, messageObject)=>{
 
-    console.log(`sending message to socketId: ${socketId}`, messageObject)
+    console.log(`📤 Sending message to socketId: ${socketId}`, { event: messageObject.event, dataKeys: Object.keys(messageObject.data || {}) })
     if(io){
         io.to(socketId).emit(messageObject.event, messageObject.data);
+        console.log(`✅ Message sent successfully to ${socketId}`);
     }else{
-        console.error('Socket.io is not initialized');
+        console.error('❌ Socket.io is not initialized');
     }
 }
 

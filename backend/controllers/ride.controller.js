@@ -18,17 +18,17 @@ module.exports.createRide = async(req,res)=>{
 
        const pickupCoordinates = await mapService.getAddressCoordinate(pickup);
 
-       console.log(pickupCoordinates);
+       console.log('Pickup coordinates:', pickupCoordinates);
         const riderInRadius = await mapService.getRiderInRadius(pickupCoordinates.lat, pickupCoordinates.lng, 5);
 
         ride.otp= ""
 
-          console.log(riderInRadius)
+          console.log('Riders in radius:', riderInRadius.length, riderInRadius.map(r => ({ id: r._id, socketId: r.socketId, location: r.location })));
 
         const rideWithUser = await rideModel.findOne({_id:ride._id}).populate('user');
         
        riderInRadius.map(rider => {
-
+            console.log(`Sending new-ride event to rider ${rider._id} with socketId: ${rider.socketId}`);
             sendMessageToSocketId(rider.socketId, {
                 event: 'new-ride',
                 data: rideWithUser

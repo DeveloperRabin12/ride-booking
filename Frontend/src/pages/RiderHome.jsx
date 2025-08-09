@@ -1,6 +1,7 @@
 import React from 'react'
 import { data, Link } from 'react-router-dom'
 import { useState,useRef } from 'react'
+import axios from 'axios'
 import riderimg from '/src/assets/images/rider.png'
 import RiderDetails from '../components/RiderDetails'
 import RidePopUp from '../components/RidePopUp'
@@ -22,20 +23,55 @@ const RiderHome = () => {
   const confirmRidePopUpPanelRef = useRef(null)
 
 
-  const [ridePopUpPanel, setRidePopUpPanel] = useState(true)
+  const [ridePopUpPanel, setRidePopUpPanel] = useState(false)
   const [confirmRidePopUpPanel, setConfirmRidePopUpPanel] = useState(false)
   const [ ride, setRide ] = useState(null)
 
   const{socket } = useContext(SocketContext)
-  const { rider } = useContext(RiderDataContext)
+  const { rider, setRider } = useContext(RiderDataContext)
 
-
+  // Load rider data if not already loaded
+  useEffect(() => {
+    const token = localStorage.getItem('token')
+    if (!rider && token) {
+      axios.get(`http://localhost:4000/riders/profile`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      }).then(response => {
+        if (response.status === 200) {
+          console.log('Rider data loaded:', response.data)
+          setRider(response.data)
+        }
+      }).catch(error => {
+        console.error('Failed to load rider data:', error)
+      })
+    }
+  }, [rider, setRider])
 
   useEffect(() => {
+    console.log('RiderHome useEffect - socket:', !!socket, 'rider:', rider)
+    
+    if (!socket || !rider?._id) {
+      console.log('Missing socket or rider data:', { socket: !!socket, riderId: rider?._id })
+      return;
+    }
+
+    console.log('Joining socket room with rider ID:', rider._id)
     socket.emit('join',{
       userId : rider._id,
       userType: 'rider'
     })
+
+    // Handle new ride events
+    const handleNewRide = (data) => {
+      console.log('🚗 New ride received:', data)
+      setRide(data)
+      setRidePopUpPanel(true)
+    }
+
+    console.log('Setting up new-ride listener')
+    socket.on('new-ride', handleNewRide)
 
      const updateLocation = () => {
            if (!rider || !rider._id) return;
@@ -54,26 +90,18 @@ const RiderHome = () => {
             }
         }
 
-
-
-        const locationInterval = setInterval(updateLocation, 50000); // Update every 5 seconds
+        const locationInterval = setInterval(updateLocation, 50000); // Update every 50 seconds
        updateLocation(); // Initial call to set location immediately
        
-        // return () => {
-        //     clearInterval(locationInterval);
-        // }
-},[]);
-
-
-socket.on('new-ride', (data) => {
-  console.log(data)
-  setRide(data)
-  setRidePopUpPanel(true)
-})
+        return () => {
+            socket.off('new-ride', handleNewRide);
+            clearInterval(locationInterval);
+        }
+},[socket, rider?._id])
 
 
 async function confirmRide(){
-  const response = await axios.post(`localhost:4000/rides/confirm`,{
+  const response = await axios.post(`http://localhost:4000/rides/confirm`,{
     rideId: ride._id,
     riderId: rider._id
 
@@ -83,8 +111,8 @@ async function confirmRide(){
       Authorization: `Bearer ${localStorage.getItem('token')}`
     }
   })
-   setRidePopupPanel(false)
-        setConfirmRidePopupPanel(true)
+   setRidePopUpPanel(false)
+        setConfirmRidePopUpPanel(true)
 
 }
 

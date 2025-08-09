@@ -188,18 +188,41 @@ module.exports.getAutoCompleteSuggestions = async (input) => {
 }
 
 module.exports.getRiderInRadius = async (lat, lng, radius) => {
-
-
-
+    // Since the location is stored as {lat: Number, lng: Number}, we need to use a different approach
+    // We'll use a simple distance calculation to find riders within radius
     
     const riders = await riderModel.find({
-        location: {
-            $geoWithin: {
-                $centerSphere: [[lng, lat], radius / 6378.1] // radius in radians
-            }
-        }
+        'location.lat': { $exists: true },
+        'location.lng': { $exists: true }
     });
 
-    return riders;
+    // Filter riders within the specified radius using Haversine formula
+    const ridersInRadius = riders.filter(rider => {
+        if (!rider.location || !rider.location.lat || !rider.location.lng) {
+            return false;
+        }
 
+        const distance = calculateDistance(lat, lng, rider.location.lat, rider.location.lng);
+        return distance <= radius;
+    });
+
+    console.log(`Found ${ridersInRadius.length} riders within ${radius}km radius`);
+    return ridersInRadius;
+}
+
+// Helper function to calculate distance between two points using Haversine formula
+function calculateDistance(lat1, lng1, lat2, lng2) {
+    const R = 6371; // Earth's radius in kilometers
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    
+    const a = 
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const distance = R * c;
+    
+    return distance;
 }
