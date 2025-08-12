@@ -1,51 +1,67 @@
 import React from 'react'
 
-const WaitingForRider = (props) => {
-  console.log(props)
+const WaitingForRider = ({ rideData, onStart }) => {
   return (
-     <div>
-       <h5 onClick={()=>{
-              props.WaitingForRider(false)
-           }} className='p-2 text-center font-bold text-2xl bg-transparent-500  top-0'><i className="ri-arrow-down-wide-line"></i></h5>
-           
-            <div className='flex items-center justify-between'>
-              <img className='h-20' src="https://swyft.pl/wp-content/uploads/2023/05/how-many-people-can-a-uberx-take.jpg" alt="" />
-              <div className='text-right'>
-                <h2 className='text-lg font-semibold'>bikas</h2>
-                <h4 className='text-xl font-semibold -mt-1 -mb-1'>Ba 8 pa 8795</h4>
-                <p className='text-sm text-gray-500'>bike</p>
-                <h1 className='text-sm font-bold'></h1>
-              </div>
-            </div>
+    <div className="h-full flex flex-col items-center justify-center bg-blue-50 p-6">
+      <div className="text-center max-w-md">
+        <h3 className='text-3xl font-bold mb-6 text-blue-800'>⏳ Waiting for Passenger</h3>
 
-           <div className='flex gap-3 flex-col items-center'>
-                         
-                <div className='w-full mt-5'>
-                    <div className='flex items-center gap-5 p-3 border-t-2'>
-                        <i className="text-lg ri-map-pin-2-fill"></i>
-                        <div >
-                            <h3 className='text-lg font-bold'>56344</h3>
-                            <p className='-mt-1 text-base font-semibold text-gray-700'>bhaktapur</p>
-                        </div>
-                    </div>
-                    <div className='flex items-center gap-5 p-3 border-t-2'>
-                        <i className="text-lg ri-map-pin-2-fill"></i>
-                        <div >
-                            <h3 className='text-lg font-bold'>56344</h3>
-                            <p className='-mt-1 text-base font-semibold text-gray-700'>kathmandu</p>
-                        </div>
-                    </div>
-                    <div className='flex items-center gap-5 p-3 border-t-2'>
-                        <i className="ri-bank-card-2-fill"></i>
-                        <div >
-                            <h3 className='text-lg font-bold'>RS 158</h3>
-                            <p className='-mt-1 text-base font-semibold text-gray-700'>Cash</p>
-                        </div>
-                    </div>
-                    
-                </div>
-           </div>
- 
+        {/* Passenger Info */}
+        <div className='flex items-center justify-between bg-white p-4 rounded-lg mb-6 shadow-md'>
+          <img
+            className='h-16 w-16 rounded-full object-cover'
+            src="https://imgs.search.brave.com/I_vRdrr9JtvB71WasZbqU05tw2l7mYOOyRvcwtAShEU/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly9pbWcv/ZnJlZXBpay5jb20v/ZnJlZS12ZWN0b3Iv/Ymx1ZS1jaXJjbGUt/d2l0aC13aGl0ZS11/c2VyXzc4MzcwLTQ3/MDcuanBnP3NlbXQ9/YWlzX2h5YnJpZCZ3/PTc0MCZxPTgw"
+            alt="Passenger"
+          />
+          <div className='text-right'>
+            <h2 className='text-lg font-semibold text-gray-800'>{rideData?.user?.name || 'Unknown'}</h2>
+            <p className='text-sm text-gray-500'>Passenger</p>
+            <p className='text-xs text-gray-400'>Ready to pickup</p>
+          </div>
+        </div>
+
+        {/* Ride Details */}
+        <div className='w-full space-y-4'>
+          {/* Pickup */}
+          <div className='flex items-center gap-4 p-3 border border-gray-200 rounded-lg bg-white'>
+            <i className="text-xl ri-map-pin-2-fill text-green-500"></i>
+            <div className='flex-1 text-left'>
+              <h3 className='text-sm font-semibold text-gray-500'>PICKUP</h3>
+              <p className='text-base font-medium text-gray-800'>{rideData?.pickup?.address || 'Unknown location'}</p>
+            </div>
+          </div>
+
+          {/* Destination */}
+          <div className='flex items-center gap-4 p-3 border border-gray-200 rounded-lg bg-white'>
+            <i className="text-xl ri-map-pin-2-fill text-red-500"></i>
+            <div className='flex-1 text-left'>
+              <h3 className='text-sm font-semibold text-gray-500'>DESTINATION</h3>
+              <p className='text-base font-medium text-gray-800'>{rideData?.destination?.address || 'Unknown destination'}</p>
+            </div>
+          </div>
+
+          {/* Fare */}
+          <div className='flex items-center gap-4 p-3 border border-gray-200 rounded-lg bg-white'>
+            <i className="text-xl ri-bank-card-2-fill text-blue-500"></i>
+            <div className='flex-1 text-left'>
+              <h3 className='text-sm font-semibold text-gray-500'>ESTIMATED FARE</h3>
+              <p className='text-lg font-bold text-green-600'>RS {rideData?.estimatedFare || '0'}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Start Ride Button */}
+        <button
+          onClick={onStart}
+          className='mt-8 w-full bg-blue-600 text-white font-semibold p-4 rounded-lg hover:bg-blue-700 transition-colors text-lg'
+        >
+          🚀 Start Ride
+        </button>
+
+        <p className='text-sm text-gray-500 mt-4'>
+          Head to the pickup location to start the ride
+        </p>
+      </div>
     </div>
   )
 }

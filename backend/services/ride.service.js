@@ -99,3 +99,18 @@ module.exports.confirmRide = async ({
     return ride;
 
 }
+
+// Add the missing getRideById function
+module.exports.getRideById = async (rideId) => {
+    if (!rideId) {
+        throw new Error('Ride ID is required');
+    }
+
+    const ride = await rideModel.findById(rideId).populate('user');
+    
+    if (!ride) {
+        throw new Error('Ride not found');
+    }
+
+    return ride;
+};

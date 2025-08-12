@@ -1,5 +1,5 @@
 
-import { Route,Routes } from 'react-router-dom'
+import { Route, Routes } from 'react-router-dom'
 import RiderLogin from './pages/RiderLogin'
 import UserLogin from './pages/UserLogin'
 import UserRegister from './pages/UserRegister'
@@ -15,34 +15,34 @@ import RiderRiding from './pages/RiderRiding'
 
 const App = () => {
 
-  
+
   return (
-   <>
-    <Routes>
-      <Route path='/' element={<StartPage/>} />
-      <Route path ='/login' element = {<UserLogin/>}/>
-      <Route path ='/riding' element ={<Riding/>}/>
-      <Route path ='/rider-riding' element ={<RiderRiding/>}/>
-      <Route path='/userRegister' element = {<UserRegister/>}/>
-      <Route path='/riderLogin' element = {<RiderLogin/>}/>
-      <Route path='/riderRegister' element = {<RiderRegister/>}/>
-      <Route path = '/home' element = {
-        <SecureLogin>
-          <Home/>
+    <>
+      <Routes>
+        <Route path='/' element={<StartPage />} />
+        <Route path='/login' element={<UserLogin />} />
+        <Route path='/riding' element={<Riding />} />
+        <Route path='/rider-riding' element={<RiderRiding />} />
+        <Route path='/userRegister' element={<UserRegister />} />
+        <Route path='/riderLogin' element={<RiderLogin />} />
+        <Route path='/riderRegister' element={<RiderRegister />} />
+        <Route path='/home' element={
+          <SecureLogin>
+            <Home />
           </SecureLogin>
-      }/>
-      <Route path='/user/logout' element={
-        <SecureLogin>
-          <UserLogout/>
-        </SecureLogin>
-      }/>
-      <Route path='/riderHome' element={
-        // <RiderProtectedLogin>
-          <RiderHome/>
-        // </RiderProtectedLogin>
-        }/>
-    </Routes>
-   </>
+        } />
+        <Route path='/user/logout' element={
+          <SecureLogin>
+            <UserLogout />
+          </SecureLogin>
+        } />
+        <Route path='/riderHome' element={
+          <RiderProtectedLogin>
+            <RiderHome />
+          </RiderProtectedLogin>
+        } />
+      </Routes>
+    </>
   )
 }
 

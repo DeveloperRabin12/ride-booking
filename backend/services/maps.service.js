@@ -3,9 +3,9 @@ const riderModel = require('../models/riderModels');
 
 
 
-module.exports.getAddressCoordinate = async(address)=>{
+module.exports.getAddressCoordinate = async (address) => {
 
-    const apiKey ='ge-d4c7d159e010de98';
+    const apiKey = 'ge-d4c7d159e010de98';
     const url = `https://api.geocode.earth/v1/search?api_key=${apiKey}&text=${address}&size=1`;
 
     try {
@@ -13,18 +13,18 @@ module.exports.getAddressCoordinate = async(address)=>{
 
 
         if (response.data.features && response.data.features.length > 0) {
-      const location = response.data.features[0]
-      return {
-        lat: location.geometry.coordinates[1], // Geocode Earth uses [lng, lat] format
-        lng: location.geometry.coordinates[0],
-        formatted_address: location.properties.label, // Additional info
-        name: location.properties.name,
-        confidence: location.properties.confidence,
-      }
-    } else {
-      throw new Error(`Unable to fetch coordinates: No results found`)
-    }
- 
+            const location = response.data.features[0]
+            return {
+                lat: location.geometry.coordinates[1], // Geocode Earth uses [lng, lat] format
+                lng: location.geometry.coordinates[0],
+                formatted_address: location.properties.label, // Additional info
+                name: location.properties.name,
+                confidence: location.properties.confidence,
+            }
+        } else {
+            throw new Error(`Unable to fetch coordinates: No results found`)
+        }
+
 
 
         // if (response.data.status === 'OK') {
@@ -156,7 +156,7 @@ module.exports.getAutoCompleteSuggestions = async (input) => {
 
 
 
-        try {
+    try {
         const response = await axios.get(url);
 
         if (!response.data.features || response.data.features.length === 0) {
@@ -167,7 +167,7 @@ module.exports.getAutoCompleteSuggestions = async (input) => {
         return response.data.features
             .map(feature => feature.properties.label)
             .filter(Boolean)
-            .slice(0,5);
+            .slice(0, 5);
     } catch (err) {
         console.error(err.message);
         throw new Error('Unable to fetch suggestions');
@@ -188,18 +188,90 @@ module.exports.getAutoCompleteSuggestions = async (input) => {
 }
 
 module.exports.getRiderInRadius = async (lat, lng, radius) => {
+    try {
+        console.log(`Searching for riders within ${radius}km of (${lat}, ${lng})`);
 
+        // First, let's see ALL riders in the database for debugging
+        const allRiders = await riderModel.find({}).lean();
+        console.log(`Total riders in database: ${allRiders.length}`);
 
+        allRiders.forEach(rider => {
+            console.log(`Rider ${rider._id}: ${rider.fullname.firstname} ${rider.fullname.lastname}`);
+            console.log(`  - Status: ${rider.status}`);
+            console.log(`  - Socket ID: ${rider.socketId || 'None'}`);
+            console.log(`  - Location: ${JSON.stringify(rider.location)}`);
+        });
 
-    
-    const riders = await riderModel.find({
-        location: {
-            $geoWithin: {
-                $centerSphere: [[lng, lat], radius / 6378.1] // radius in radians
+        // For now, let's be VERY lenient and get ALL riders
+        // This will help us debug why riders aren't being found
+        const riders = await riderModel.find({
+            // Remove ALL filters temporarily for debugging
+            // We want to see ALL riders regardless of status, socket, or location
+        }).lean();
+
+        console.log(`Found ${riders.length} total riders (all filters removed)`);
+
+        // Filter riders within radius (if they have location)
+        const ridersInRadius = [];
+        for (const rider of riders) {
+            // If rider has location, calculate distance
+            if (rider.location &&
+                typeof rider.location.lat === 'number' &&
+                typeof rider.location.lng === 'number' &&
+                !isNaN(rider.location.lat) &&
+                !isNaN(rider.location.lng)) {
+
+                // Calculate distance using Haversine formula
+                const distance = calculateDistance(lat, lng, rider.location.lat, rider.location.lng);
+
+                if (distance <= radius) {
+                    ridersInRadius.push({
+                        ...rider,
+                        distance: distance
+                    });
+                }
+            } else {
+                // If rider has no location, add them anyway for debugging
+                console.log(`⚠️ Rider ${rider.fullname.firstname} has no valid location - adding with default distance`);
+                ridersInRadius.push({
+                    ...rider,
+                    distance: 0 // Default distance for riders without location
+                });
             }
         }
-    });
 
-    return riders;
+        // Sort by distance and remove duplicates
+        const uniqueRiders = ridersInRadius
+            .filter((rider, index, self) =>
+                index === self.findIndex(r => r._id.toString() === rider._id.toString())
+            )
+            .sort((a, b) => a.distance - b.distance);
 
+        console.log(`Found ${uniqueRiders.length} unique riders (including those without location)`);
+        uniqueRiders.forEach(rider => {
+            if (rider.location && rider.location.lat) {
+                console.log(`Rider ${rider._id}: ${rider.fullname.firstname} ${rider.fullname.lastname} at (${rider.location.lat}, ${rider.location.lng}) - ${rider.distance.toFixed(2)}km away`);
+            } else {
+                console.log(`Rider ${rider._id}: ${rider.fullname.firstname} ${rider.fullname.lastname} - NO LOCATION DATA`);
+            }
+        });
+
+        return uniqueRiders;
+    } catch (error) {
+        console.error('Error finding riders in radius:', error);
+        throw error;
+    }
+};
+
+// Helper function to calculate distance between two points
+function calculateDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371; // Earth's radius in kilometers
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
 }
