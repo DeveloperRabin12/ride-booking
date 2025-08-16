@@ -12,6 +12,8 @@ import RiderHome from './pages/RiderHome'
 import RiderProtectedLogin from './pages/RiderProtectedLogin'
 import Riding from './pages/Riding'
 import RiderRiding from './pages/RiderRiding'
+import RiderProfile from './pages/RiderProfile'
+import RiderHistory from './pages/RiderHistory'
 
 const App = () => {
 
@@ -39,6 +41,16 @@ const App = () => {
         <Route path='/riderHome' element={
           <RiderProtectedLogin>
             <RiderHome />
+          </RiderProtectedLogin>
+        } />
+        <Route path='/rider/profile' element={
+          <RiderProtectedLogin>
+            <RiderProfile />
+          </RiderProtectedLogin>
+        } />
+        <Route path='/rider/history' element={
+          <RiderProtectedLogin>
+            <RiderHistory />
           </RiderProtectedLogin>
         } />
       </Routes>

@@ -4,7 +4,7 @@ import { useRider } from '../context/RiderContext'
 import { gsap } from 'gsap'
 import RiderDetails from '../components/RiderDetails'
 import RiderRideRequest from '../components/RiderRideRequest'
-import WaitingForRider from '../components/WaitingForRider'
+import WaitingForPassenger from '../components/WaitingForPassenger'
 import FinishRide from '../components/FinishRide'
 import ConfirmedVehicle from '../components/ConfirmedVehicle'
 import Riding from '../components/Riding'
@@ -100,6 +100,12 @@ const RiderHome = () => {
   // Handle new ride request
   const handleNewRide = (data) => {
     console.log('🚗 New ride request received:', data);
+    console.log('🔍 Ride data structure:', {
+      rideId: data.rideId,
+      _id: data._id,
+      user: data.user,
+      pickup: data.pickup
+    });
     setRideData(data);
     setRidePopUpPanel(true);
     setRideStatus('looking');
@@ -114,8 +120,14 @@ const RiderHome = () => {
 
       // Notify user that ride is accepted
       if (socket) {
+        console.log('📤 Sending ride-accepted event with data:', {
+          rideId: rideData.rideId,
+          riderId: rider._id,
+          riderName: `${rider.fullname.firstname} ${rider.fullname.lastname}`
+        });
+
         socket.emit('ride-accepted', {
-          rideId: rideData._id,
+          rideId: rideData.rideId,
           riderId: rider._id,
           riderName: `${rider.fullname.firstname} ${rider.fullname.lastname}`,
           estimatedTime: '5-10 minutes'
@@ -140,7 +152,7 @@ const RiderHome = () => {
     // Notify user that ride has started
     if (socket && rideData) {
       socket.emit('ride-started', {
-        rideId: rideData._id,
+        rideId: rideData.rideId,
         riderId: rider._id,
         riderName: `${rider.fullname.firstname} ${rider.fullname.lastname}`,
         estimatedTime: '5-10 minutes'
@@ -153,12 +165,23 @@ const RiderHome = () => {
     setRideStatus('finished');
     console.log('🏁 Ride finished');
 
+    // Calculate ride distance and duration (simplified - in real app, this would come from GPS tracking)
+    const estimatedDistance = Math.floor(Math.random() * 15) + 5; // 5-20 km (replace with real GPS calculation)
+    const estimatedDuration = Math.floor(Math.random() * 30) + 15; // 15-45 minutes (replace with real time tracking)
+
+    console.log(`📊 Ride completion data:`, {
+      distance: estimatedDistance,
+      duration: estimatedDuration
+    });
+
     // Notify user that ride has finished
     if (socket && rideData) {
       socket.emit('ride-finished', {
-        rideId: rideData._id,
+        rideId: rideData.rideId,
         riderId: rider._id,
-        riderName: `${rider.fullname.firstname} ${rider.fullname.lastname}`
+        riderName: `${rider.fullname.firstname} ${rider.fullname.lastname}`,
+        distance: estimatedDistance,
+        duration: estimatedDuration
       });
     }
   };
@@ -266,7 +289,7 @@ const RiderHome = () => {
         );
       case 'waiting':
         return (
-          <WaitingForRider
+          <WaitingForPassenger
             rideData={rideData}
             onStart={handleStartRide}
           />

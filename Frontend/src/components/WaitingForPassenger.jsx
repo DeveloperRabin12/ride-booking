@@ -1,24 +1,24 @@
 import React from 'react'
 
-const WaitingForRider = ({ ride, setVehicleFound, setWaitingForRider, waitingForRider }) => {
-  console.log('WaitingForRider component rendered with props:', { ride, waitingForRider });
+const WaitingForPassenger = ({ rideData, onStart }) => {
+  console.log('WaitingForPassenger component rendered with props:', { rideData, onStart });
   
   return (
     <div className="h-full flex flex-col items-center justify-center bg-blue-50 p-6">
       <div className="text-center max-w-md">
-        <h3 className='text-3xl font-bold mb-6 text-blue-800'>⏳ Waiting for Rider</h3>
+        <h3 className='text-3xl font-bold mb-6 text-blue-800'>⏳ Waiting for Passenger</h3>
 
-        {/* Rider Info */}
+        {/* Passenger Info */}
         <div className='flex items-center justify-between bg-white p-4 rounded-lg mb-6 shadow-md'>
           <img
             className='h-16 w-16 rounded-full object-cover'
             src="https://imgs.search.brave.com/I_vRdrr9JtvB71WasZbqU05tw2l7mYOOyRvcwtAShEU/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly9pbWcv/ZnJlZXBpay5jb20v/ZnJlZS12ZWN0b3Iv/Ymx1ZS1jaXJjbGUt/d2l0aC13aWhpdGUtd/XNlcl83ODM3MC00Nz/cuanBnP3NlbXQ9/YWlzX2h5YnJpZCZ3/PTc0MCZxPTgw"
-            alt="Rider"
+            alt="Passenger"
           />
           <div className='text-right'>
-            <h2 className='text-lg font-semibold text-gray-800'>{ride?.riderName || 'Rider'}</h2>
-            <p className='text-sm text-gray-500'>Driver</p>
-            <p className='text-xs text-green-500'>On the way</p>
+            <h2 className='text-lg font-semibold text-gray-800'>{rideData?.user?.name || 'Unknown User'}</h2>
+            <p className='text-sm text-gray-500'>Passenger</p>
+            <p className='text-xs text-gray-400'>Ready to pickup</p>
           </div>
         </div>
 
@@ -29,9 +29,7 @@ const WaitingForRider = ({ ride, setVehicleFound, setWaitingForRider, waitingFor
             <i className="text-xl ri-map-pin-2-fill text-green-500"></i>
             <div className='flex-1 text-left'>
               <h3 className='text-sm font-semibold text-gray-500'>PICKUP</h3>
-              <p className='text-base font-medium text-gray-800'>
-                {ride?.pickup?.address || ride?.pickup || 'Unknown location'}
-              </p>
+              <p className='text-base font-medium text-gray-800'>{rideData?.pickup?.address || 'Unknown location'}</p>
             </div>
           </div>
 
@@ -40,18 +38,7 @@ const WaitingForRider = ({ ride, setVehicleFound, setWaitingForRider, waitingFor
             <i className="text-xl ri-map-pin-2-fill text-red-500"></i>
             <div className='flex-1 text-left'>
               <h3 className='text-sm font-semibold text-gray-500'>DESTINATION</h3>
-              <p className='text-base font-medium text-gray-800'>
-                {ride?.destination?.address || ride?.destination || 'Unknown destination'}
-              </p>
-            </div>
-          </div>
-
-          {/* Estimated Time */}
-          <div className='flex items-center gap-4 p-3 border border-gray-200 rounded-lg bg-white'>
-            <i className="text-xl ri-time-fill text-orange-500"></i>
-            <div className='flex-1 text-left'>
-              <h3 className='text-sm font-semibold text-gray-500'>ESTIMATED ARRIVAL</h3>
-              <p className='text-lg font-bold text-orange-600'>{ride?.estimatedTime || '5-10 minutes'}</p>
+              <p className='text-base font-medium text-gray-800'>{rideData?.destination?.address || 'Unknown destination'}</p>
             </div>
           </div>
 
@@ -60,24 +47,25 @@ const WaitingForRider = ({ ride, setVehicleFound, setWaitingForRider, waitingFor
             <i className="text-xl ri-bank-card-2-fill text-blue-500"></i>
             <div className='flex-1 text-left'>
               <h3 className='text-sm font-semibold text-gray-500'>ESTIMATED FARE</h3>
-              <p className='text-lg font-bold text-green-600'>RS {ride?.fare || ride?.estimatedFare || '0'}</p>
+              <p className='text-lg font-bold text-green-600'>RS {rideData?.estimatedFare || '0'}</p>
             </div>
           </div>
         </div>
 
-        {/* Status Message */}
-        <div className='mt-6 p-4 bg-blue-100 rounded-lg'>
-          <p className='text-blue-800 font-medium'>
-            🚗 Your driver is on the way. Please wait at the pickup location.
-          </p>
-        </div>
+        {/* Start Ride Button */}
+        <button
+          onClick={onStart}
+          className='mt-8 w-full bg-blue-600 text-white font-semibold p-4 rounded-lg hover:bg-blue-700 transition-colors text-lg'
+        >
+          🚀 Start Ride
+        </button>
 
         <p className='text-sm text-gray-500 mt-4'>
-          The rider will start the ride when they arrive
+          Head to the pickup location to start the ride
         </p>
       </div>
     </div>
   )
 }
 
-export default WaitingForRider
+export default WaitingForPassenger

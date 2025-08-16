@@ -34,8 +34,8 @@ const Home = () => {
   const [availableRiders, setAvailableRiders] = useState([])
   const [rideInProgress, setRideInProgress] = useState(false)
 
-  const panel = useRef(null)
-  const downPanel = useRef(null)
+  const pickupInputRef = useRef(null)
+  const destinationInputRef = useRef(null)
   const vehiclePanelRef = useRef(null)
   const confirmedVehicleRef = useRef(null)
   const vehicleFoundRef = useRef(null)
@@ -43,6 +43,12 @@ const Home = () => {
 
   const { socket } = useContext(SocketContext)
   const { user } = useContext(UserDataContext)
+
+  // Initialize suggestions
+  useEffect(() => {
+    setPickupSuggestions([]);
+    setDestinationSuggestions([]);
+  }, []);
 
   // Socket connection and event handling
   useEffect(() => {
@@ -52,7 +58,6 @@ const Home = () => {
 
     // Handle ride confirmation
     const handleRideConfirmed = (confirmedRide) => {
-      console.log('Ride confirmed:', confirmedRide);
       setVehicleFound(false);
       setWaitingForRider(true);
       setRide(confirmedRide);
@@ -60,20 +65,21 @@ const Home = () => {
 
     // Handle ride acceptance
     const handleRideAccepted = (data) => {
-      console.log('Ride accepted by rider:', data);
       setVehicleFound(false);
       setWaitingForRider(true);
-      setRide(prevRide => ({
-        ...prevRide,
-        status: 'accepted',
-        riderName: data.riderName,
-        estimatedTime: data.estimatedTime
-      }));
+      setRide(prevRide => {
+        const updatedRide = {
+          ...prevRide,
+          status: 'accepted',
+          riderName: data.riderName,
+          estimatedTime: data.estimatedTime
+        };
+        return updatedRide;
+      });
     };
 
     // Handle ride start
     const handleRideStarted = (data) => {
-      console.log('Ride started:', data);
       setWaitingForRider(false);
       setRideInProgress(true);
       setRide(prevRide => ({
@@ -86,7 +92,6 @@ const Home = () => {
 
     // Handle ride finish
     const handleRideFinished = (data) => {
-      console.log('Ride finished:', data);
       setWaitingForRider(false);
       setVehicleFound(false);
       setRideInProgress(false);
@@ -110,76 +115,21 @@ const Home = () => {
     };
   }, [socket, user?._id]);
 
-  // Debounced location search function
-  const debouncedSearch = useCallback(
-    (() => {
-      let timeoutId;
-      return (searchTerm, setSuggestions, fieldType) => {
-        clearTimeout(timeoutId);
-        timeoutId = setTimeout(async () => {
-          if (searchTerm.length < 2) {
-            setSuggestions([]);
-            return;
-          }
-
-          try {
-            const response = await axios.get(`http://localhost:4000/maps/get-suggestions`, {
-              params: { input: searchTerm },
-              headers: {
-                Authorization: `Bearer ${localStorage.getItem('token')}`
-              }
-            });
-
-            const suggestions = Array.isArray(response.data) ? response.data : [];
-            console.log(`${fieldType} suggestions:`, suggestions);
-            setSuggestions(suggestions);
-          } catch (error) {
-            console.error(`Error fetching ${fieldType} suggestions:`, error);
-            setSuggestions([]);
-          }
-        }, 300); // 300ms debounce
-      };
-    })(),
-    []
-  );
-
   const handlePickupChange = (e) => {
     const value = e.target.value;
     setPickup(value);
-    debouncedSearch(value, setPickupSuggestions, 'pickup');
   };
 
   const handleDestinationChange = (e) => {
     const value = e.target.value;
     setDestination(value);
-    debouncedSearch(value, setDestinationSuggestions, 'destination');
   };
 
   const submitHandler = (e) => {
     e.preventDefault();
   };
 
-  // GSAP animations
-  useGSAP(() => {
-    if (locationSuggest) {
-      gsap.to(panel.current, {
-        height: '70%',
-        padding: 24,
-      });
-      gsap.to(downPanel.current, {
-        opacity: 1
-      });
-    } else {
-      gsap.to(panel.current, {
-        height: '0%',
-        padding: 0,
-      });
-      gsap.to(downPanel.current, {
-        opacity: 0
-      });
-    }
-  }, [locationSuggest]);
-
+  // GSAP animations for other panels
   useGSAP(() => {
     if (vehiclePanel) {
       gsap.to(vehiclePanelRef.current, {
@@ -247,13 +197,12 @@ const Home = () => {
       });
 
       setFare(fareResponse.data);
-      console.log('Fare calculated:', fareResponse.data);
 
       // Now search for available riders
       const ridersResponse = await axios.get(`http://localhost:4000/riders/search-nearby`, {
         params: {
           pickup: pickup,
-          radius: 5
+          radius: 15
         },
         headers: {
           Authorization: `Bearer ${localStorage.getItem('token')}`
@@ -261,7 +210,6 @@ const Home = () => {
       });
 
       setAvailableRiders(ridersResponse.data);
-      console.log('Available riders found:', ridersResponse.data);
 
       setVehiclePanel(true);
       setLocationSuggest(false);
@@ -311,76 +259,165 @@ const Home = () => {
   return (
     <div className='h-screen relative overflow-hidden'>
       {/* homepage */}
-      <img className='w-20 absolute top-5 left-5' src={`${userimg}`} alt="" />
+      <img className='w-20 absolute top-5 left-5 z-20' src={`${userimg}`} alt="" />
 
-      <div className='h-screen w-screen'>
+      {/* Background with overlay */}
+      <div className='h-screen w-screen relative'>
         <img className='h-full w-full object-cover' src="https://miro.medium.com/v2/resize:fit:1400/0*gwMx05pqII5hbfmX.gif" alt="" />
+        <div className='absolute inset-0 bg-black bg-opacity-40'></div>
       </div>
 
-      <div className='h-screen absolute top-0 w-full flex flex-col justify-end'>
-        <div className='h-[30%] p-8 bg-white relative'>
-          <h5 ref={downPanel}
-            onClick={() => {
-              setLocationSuggest(false)
-            }} className='text-2xl absolute opacity-0 right-10'><i className="ri-arrow-down-wide-fill"></i></h5>
+      {/* Main Content */}
+      <div className='h-screen absolute top-0 w-full flex flex-col justify-end z-10'>
+        {/* Enhanced Header */}
+        <div className='px-8 pt-20 pb-4'>
+          <div className='text-center text-white mb-6'>
+            <h1 className='text-4xl font-bold mb-2'>🚗 Find Your Ride</h1>
+            <p className='text-lg opacity-90'>Quick, safe, and reliable transportation</p>
+          </div>
+        </div>
 
-          <h4 className='text-3xl font-medium'>Find a ride</h4>
+        {/* Enhanced Form Card */}
+        <div className='bg-white rounded-t-3xl p-8 shadow-2xl relative'>
+          {/* Decorative elements */}
+          <div className='absolute -top-3 left-1/2 transform -translate-x-1/2 w-16 h-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full'></div>
 
           {/* Error message */}
           {searchError && (
-            <div className='text-red-500 text-sm mt-2 mb-2'>{searchError}</div>
+            <div className='mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2'>
+              <i className="ri-error-warning-line text-red-500"></i>
+              <span className='text-red-700 text-sm'>{searchError}</span>
+            </div>
           )}
 
-          <form onSubmit={submitHandler}>
-            <input
-              onClick={() => {
-                setActiveField('pickup')
-                setLocationSuggest(true)
-              }}
-              value={pickup}
-              onChange={handlePickupChange}
-              className='bg-[#eee] px-8 py-1 rounded-lg text-lg mt-4 w-full'
-              type="text"
-              placeholder='Your Location'
-            />
+          {/* Enhanced Form */}
+          <form onSubmit={submitHandler} className='space-y-4'>
+            {/* Pickup Location */}
+            <div className='relative'>
+              <label className='block text-sm font-medium text-gray-700 mb-2'>Pickup Location</label>
+              <div className='relative'>
+                <div className='absolute left-3 top-1/2 transform -translate-y-1/2 text-green-500'>
+                  <i className="ri-map-pin-2-fill text-xl"></i>
+                </div>
+                <input
+                  ref={pickupInputRef}
+                  onClick={() => {
+                    setActiveField('pickup')
+                    setLocationSuggest(true)
+                  }}
+                  value={pickup}
+                  onChange={handlePickupChange}
+                  className='w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-gray-200 rounded-xl text-lg focus:border-blue-500 focus:bg-white transition-all duration-200 placeholder-gray-400'
+                  type="text"
+                  placeholder='Where are you now?'
+                />
+                {pickup && (
+                  <button
+                    type="button"
+                    onClick={() => setPickup('')}
+                    className='absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600'
+                  >
+                    <i className="ri-close-circle-fill text-xl"></i>
+                  </button>
+                )}
+              </div>
+            </div>
 
-            <input
-              onClick={() => {
-                setActiveField('destination')
-                setLocationSuggest(true)
-              }}
-              value={destination}
-              onChange={handleDestinationChange}
-              className='bg-[#eee] px-8 py-1 rounded-lg text-lg w-full mt-3'
-              type="text"
-              placeholder='Your destination'
-            />
+            {/* Destination Location */}
+            <div className='relative'>
+              <label className='block text-sm font-medium text-gray-700 mb-2'>Destination</label>
+              <div className='relative'>
+                <div className='absolute left-3 top-1/2 transform -translate-y-1/2 text-red-500'>
+                  <i className="ri-map-pin-2-fill text-xl"></i>
+                </div>
+                <input
+                  ref={destinationInputRef}
+                  onClick={() => {
+                    setActiveField('destination')
+                    setLocationSuggest(true)
+                  }}
+                  value={destination}
+                  onChange={handleDestinationChange}
+                  className='w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-gray-200 rounded-xl text-lg focus:border-blue-500 focus:bg-white transition-all duration-200 placeholder-gray-400'
+                  type="text"
+                  placeholder='Where do you want to go?'
+                />
+                {destination && (
+                  <button
+                    type="button"
+                    onClick={() => setDestination('')}
+                    className='absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600'
+                  >
+                    <i className="ri-close-circle-fill text-xl"></i>
+                  </button>
+                )}
+              </div>
+            </div>
           </form>
 
+          {/* Enhanced Find Trip Button */}
           <button
             onClick={findTrip}
             disabled={isSearching || !pickup || !destination}
-            className={`px-4 py-2 rounded-lg mt-3 w-full ${isSearching || !pickup || !destination
-              ? 'bg-gray-400 cursor-not-allowed'
-              : 'bg-black hover:bg-gray-800'
-              } text-white`}
+            className={`w-full mt-6 py-4 rounded-xl font-semibold text-lg transition-all duration-200 flex items-center justify-center gap-3 ${isSearching || !pickup || !destination
+              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              : 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 transform hover:scale-105 shadow-lg'
+              }`}
           >
-            {isSearching ? 'Calculating...' : 'Find Trip'}
+            {isSearching ? (
+              <>
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+                <span>Finding your ride...</span>
+              </>
+            ) : (
+              <>
+                <i className="ri-search-line text-xl"></i>
+                <span>Find Trip</span>
+              </>
+            )}
           </button>
         </div>
 
-        <div ref={panel} className='bg-white h-0'>
+        {/* Location Search Popover */}
+        {locationSuggest && (
           <LocationSearch
             suggestions={activeField === 'pickup' ? pickupSuggestions : destinationSuggestions}
             setPickup={setPickup}
             setDestination={setDestination}
             activeField={activeField}
             setLocationSuggest={setLocationSuggest}
-            setVehiclePanel={setVehiclePanel}
+            triggerRef={activeField === 'pickup' ? pickupInputRef : destinationInputRef}
+            onSearch={async (searchTerm, fieldType) => {
+              try {
+                const response = await axios.get(`http://localhost:4000/maps/get-suggestions`, {
+                  params: { input: searchTerm },
+                  headers: {
+                    Authorization: `Bearer ${localStorage.getItem('token')}`
+                  }
+                });
+
+                const newSuggestions = Array.isArray(response.data) ? response.data : [];
+
+                // Update the appropriate suggestions state
+                if (fieldType === 'pickup') {
+                  setPickupSuggestions(newSuggestions);
+                } else {
+                  setDestinationSuggestions(newSuggestions);
+                }
+
+                // Signal search completion to LocationSearch component
+                return { success: true, suggestions: newSuggestions };
+              } catch (error) {
+                console.error(`Error fetching ${fieldType} suggestions:`, error);
+                // Keep existing suggestions on error
+                return { success: false, error: error.message };
+              }
+            }}
           />
-        </div>
+        )}
       </div>
 
+      {/* Vehicle Panel */}
       <div ref={vehiclePanelRef} className='fixed z-10 translate-y-full bottom-0 bg-white p-3 w-full'>
         <VehiclePanel
           fare={fare}
@@ -391,6 +428,7 @@ const Home = () => {
         />
       </div>
 
+      {/* Confirmed Vehicle */}
       <div ref={confirmedVehicleRef} className='fixed z-10 translate-y-full bottom-0 bg-white p-3 w-full'>
         <ConfirmedVehicle
           createRide={createRide}
@@ -404,6 +442,7 @@ const Home = () => {
         />
       </div>
 
+      {/* Looking for Rider */}
       <div ref={vehicleFoundRef} className='fixed z-10 translate-y-full bottom-0 bg-white p-3 w-full'>
         <LookingForRider
           pickup={pickup}
@@ -413,6 +452,7 @@ const Home = () => {
         />
       </div>
 
+      {/* Waiting for Rider */}
       <div ref={waitingForRiderRef} className='fixed z-10 translate-y-full bottom-0 bg-white p-3 w-full'>
         <WaitingForRider
           ride={ride}
