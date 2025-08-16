@@ -223,12 +223,16 @@ module.exports.getRiderInRadius = async (lat, lng, radius) => {
 
                 // Calculate distance using Haversine formula
                 const distance = calculateDistance(lat, lng, rider.location.lat, rider.location.lng);
+                console.log(`  - Distance calculation: ${distance.toFixed(2)}km (radius: ${radius}km)`);
 
                 if (distance <= radius) {
+                    console.log(`  - ✅ Rider ${rider.fullname.firstname} is within radius`);
                     ridersInRadius.push({
                         ...rider,
                         distance: distance
                     });
+                } else {
+                    console.log(`  - ❌ Rider ${rider.fullname.firstname} is outside radius`);
                 }
             } else {
                 // If rider has no location, add them anyway for debugging
@@ -255,6 +259,39 @@ module.exports.getRiderInRadius = async (lat, lng, radius) => {
                 console.log(`Rider ${rider._id}: ${rider.fullname.firstname} ${rider.fullname.lastname} - NO LOCATION DATA`);
             }
         });
+
+        console.log(`\nRiders found in radius: ${ridersInRadius.length}`);
+
+        // If no riders found in initial radius, try expanding the search
+        if (ridersInRadius.length === 0) {
+            console.log(`No riders found in ${radius}km radius. Expanding search to ${radius * 2}km...`);
+
+            const expandedRiders = [];
+            for (const rider of riders) {
+                if (rider.location &&
+                    typeof rider.location.lat === 'number' &&
+                    typeof rider.location.lng === 'number' &&
+                    !isNaN(rider.location.lat) &&
+                    !isNaN(rider.location.lng)) {
+
+                    const distance = calculateDistance(lat, lng, rider.location.lat, rider.location.lng);
+                    console.log(`  - Expanded search: ${distance.toFixed(2)}km (expanded radius: ${radius * 2}km)`);
+
+                    if (distance <= radius * 2) {
+                        console.log(`  - ✅ Rider ${rider.fullname.firstname} found in expanded radius`);
+                        expandedRiders.push({
+                            ...rider,
+                            distance: distance
+                        });
+                    }
+                }
+            }
+
+            if (expandedRiders.length > 0) {
+                console.log(`Found ${expandedRiders.length} riders in expanded radius`);
+                return expandedRiders.sort((a, b) => a.distance - b.distance);
+            }
+        }
 
         return uniqueRiders;
     } catch (error) {

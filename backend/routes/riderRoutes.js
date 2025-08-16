@@ -69,4 +69,10 @@ router.get('/search-nearby', authMiddleware.authUser, riderController.searchNear
 
 router.get('/logout', authMiddleware.authRider, riderController.logoutRider); //calling logoutUser function from userController
 
+router.get('/stats', authMiddleware.authRider, riderController.getRiderStats);
+
+router.put('/profile', authMiddleware.authRider, riderController.updateRiderProfile);
+
+router.get('/rides', authMiddleware.authRider, riderController.getRiderRides);
+
 module.exports = router; 

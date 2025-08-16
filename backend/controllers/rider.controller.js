@@ -2,6 +2,7 @@ const riderModel = require('../models/riderModels'); //importing riderModel from
 const { validationResult } = require('express-validator'); //importing validationResult from express-validator
 const riderService = require('../services/riderService'); //importing riderService from riderService.js
 const BlackListToken = require('../models/blackListTokens.model'); //importing blackListToken model
+const StatsService = require('../services/stats.service');
 
 module.exports.registerRider = async (req, res, next) => {
     const errors = validationResult(req);
@@ -92,7 +93,7 @@ module.exports.getAllRiders = async (req, res, next) => {
 
 module.exports.searchNearbyRiders = async (req, res, next) => {
     try {
-        const { pickup, radius = 5 } = req.query;
+        const { pickup, radius = 15 } = req.query;
 
         if (!pickup) {
             return res.status(400).json({ message: 'Pickup location is required' });
@@ -145,5 +146,98 @@ module.exports.searchNearbyRiders = async (req, res, next) => {
     } catch (error) {
         console.error('Error searching for nearby riders:', error);
         res.status(500).json({ message: 'Error searching for riders' });
+    }
+};
+
+module.exports.getRiderStats = async (req, res, next) => {
+    try {
+        const riderId = req.rider._id;
+
+        // Get today's stats
+        const todayStats = await StatsService.getRiderTodayStats(riderId);
+
+        // Get all time stats
+        const allTimeStats = await StatsService.getRiderAllTimeStats(riderId);
+
+        // Get trends for last 7 days
+        const trends = await StatsService.getRiderTrends(riderId);
+
+        const stats = {
+            today: todayStats,
+            allTime: allTimeStats,
+            trends: trends
+        };
+
+        res.status(200).json(stats);
+    } catch (error) {
+        console.error('Error getting rider stats:', error);
+        res.status(500).json({ message: 'Error getting rider statistics' });
+    }
+};
+
+module.exports.updateRiderProfile = async (req, res, next) => {
+    try {
+        const riderId = req.rider._id;
+        const { fullname, email, phone, vehicle } = req.body;
+
+        // Validate required fields
+        if (!fullname || !email || !phone || !vehicle) {
+            return res.status(400).json({ message: 'All fields are required' });
+        }
+
+        // Check if email is already taken by another rider
+        const existingRider = await riderModel.findOne({ email, _id: { $ne: riderId } });
+        if (existingRider) {
+            return res.status(400).json({ message: 'Email is already taken' });
+        }
+
+        // Update rider profile
+        const updatedRider = await riderModel.findByIdAndUpdate(riderId, {
+            fullname: {
+                firstname: fullname.firstname,
+                lastname: fullname.lastname
+            },
+            email,
+            phone,
+            vehicle: {
+                vehicleType: vehicle.vehicleType,
+                color: vehicle.color,
+                numberPlate: vehicle.numberPlate
+            }
+        }, { new: true }).select('-password');
+
+        if (!updatedRider) {
+            return res.status(404).json({ message: 'Rider not found' });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'Profile updated successfully',
+            rider: updatedRider
+        });
+    } catch (error) {
+        console.error('Error updating rider profile:', error);
+        res.status(500).json({ message: 'Error updating profile' });
+    }
+};
+
+module.exports.getRiderRides = async (req, res, next) => {
+    try {
+        const riderId = req.rider._id;
+        const rideModel = require('../models/ride.model');
+
+        // Get all rides for this rider, ordered by most recent first
+        const rides = await rideModel.find({ rider: riderId })
+            .sort({ createdAt: -1 })
+            .populate('user', 'fullname phone')
+            .select('+otp');
+
+        res.status(200).json({
+            success: true,
+            rides: rides
+        });
+    } catch (error) {
+        console.error('Error getting rider rides:', error);
+        res.status(500).json({ message: 'Error getting ride history' });
     }
 };

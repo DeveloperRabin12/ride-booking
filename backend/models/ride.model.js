@@ -22,7 +22,6 @@ const rideSchema = new mongoose.Schema({
         type: Number,
         required: true,
     },
-
     status: {
         type: String,
         enum: ['pending', 'accepted','ongoing', 'completed', 'cancelled'],
@@ -34,6 +33,19 @@ const rideSchema = new mongoose.Schema({
     distance:{
         type:Number
     },
+    // Rider earnings tracking
+    riderEarnings: {
+        type: Number,
+        default: 0
+    },
+    // Timestamps for stats
+    createdAt: {
+        type: Date,
+        default: Date.now
+    },
+    completedAt: {
+        type: Date
+    },
      paymentID: {
         type: String,
     },
@@ -43,14 +55,15 @@ const rideSchema = new mongoose.Schema({
     signature: {
         type: String,
     },
-
     otp: {
         type: String,
         select: false,
         required : true,
     }
-
-
 })
+
+// Add geospatial index for location-based queries
+rideSchema.index({ user: 1, status: 1, createdAt: 1 });
+rideSchema.index({ rider: 1, status: 1, createdAt: 1 });
 
 module.exports = mongoose.model('ride',rideSchema)

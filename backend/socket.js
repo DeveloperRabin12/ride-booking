@@ -24,7 +24,7 @@ const initializeSocket = (server) => {
 
                 if (userType === 'rider') {
                     console.log(`🏍️ Processing rider join for ID: ${userId}`);
-                    
+
                     // Update rider with socket ID and set as active
                     const rider = await riderModel.findByIdAndUpdate(userId, {
                         socketId: socket.id,
@@ -58,6 +58,7 @@ const initializeSocket = (server) => {
 
                     if (user) {
                         console.log(`✅ User ${user.fullname.firstname} ${user.fullname.lastname} connected`);
+                        console.log(`   Socket ID: ${user.socketId}`);
                         socket.emit('user-connected', {
                             message: 'Successfully connected as user',
                             userId: user._id
@@ -135,10 +136,11 @@ const initializeSocket = (server) => {
         socket.on('ride-accepted', async (data) => {
             try {
                 const { rideId, riderId, riderName, estimatedTime } = data;
+                console.log(`✅ Ride acceptance data received:`, data);
                 console.log(`✅ Ride ${rideId} accepted by rider ${riderName}`);
 
                 // Update ride status in database
-                const rideModel = require('../models/ride.model');
+                const rideModel = require('./models/ride.model');
                 await rideModel.findByIdAndUpdate(rideId, {
                     status: 'accepted',
                     rider: riderId
@@ -146,6 +148,10 @@ const initializeSocket = (server) => {
 
                 // Notify user that ride is accepted
                 const ride = await rideModel.findById(rideId).populate('user');
+                console.log(`🔍 Ride found:`, ride);
+                console.log(`🔍 User data:`, ride?.user);
+                console.log(`🔍 User socket ID:`, ride?.user?.socketId);
+
                 if (ride && ride.user.socketId) {
                     await sendMessageToSocketId(ride.user.socketId, 'ride-accepted', {
                         rideId: rideId,
@@ -153,6 +159,8 @@ const initializeSocket = (server) => {
                         estimatedTime: estimatedTime
                     });
                     console.log(`📨 Ride accepted notification sent to user ${ride.user.fullname.firstname}`);
+                } else {
+                    console.log(`❌ Cannot notify user: ride=${!!ride}, user=${!!ride?.user}, socketId=${!!ride?.user?.socketId}`);
                 }
             } catch (error) {
                 console.error('❌ Error handling ride acceptance:', error);
@@ -166,7 +174,7 @@ const initializeSocket = (server) => {
                 console.log(`🚀 Ride ${rideId} started by rider ${riderName}`);
 
                 // Update ride status in database
-                const rideModel = require('../models/ride.model');
+                const rideModel = require('./models/ride.model');
                 await rideModel.findByIdAndUpdate(rideId, {
                     status: 'ongoing'
                 });
@@ -189,14 +197,23 @@ const initializeSocket = (server) => {
         // Handle ride finish
         socket.on('ride-finished', async (data) => {
             try {
-                const { rideId, riderId, riderName } = data;
+                const { rideId, riderId, riderName, distance, duration } = data;
                 console.log(`🏁 Ride ${rideId} finished by rider ${riderName}`);
+                console.log(`📊 Ride completion data:`, { distance, duration });
 
-                // Update ride status in database
-                const rideModel = require('../models/ride.model');
-                await rideModel.findByIdAndUpdate(rideId, {
-                    status: 'completed'
-                });
+                // Update ride status in database with completion data
+                const rideModel = require('./models/ride.model');
+                const StatsService = require('./services/stats.service');
+                
+                // Complete the ride with stats
+                const completedRide = await StatsService.completeRide(rideId, distance, duration);
+                
+                if (completedRide) {
+                    console.log(`✅ Ride ${rideId} completed successfully`);
+                    console.log(`   Distance: ${completedRide.distance} km`);
+                    console.log(`   Duration: ${completedRide.duration} minutes`);
+                    console.log(`   Rider Earnings: RS ${completedRide.riderEarnings}`);
+                }
 
                 // Notify user that ride has finished
                 const ride = await rideModel.findById(rideId).populate('user');

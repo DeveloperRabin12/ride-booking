@@ -18,6 +18,13 @@ module.exports.createRide = async (req, res, next) => {
             vehicleType
         });
 
+        console.log(`🚗 Ride created successfully:`, {
+            rideId: ride._id,
+            userId: req.user._id,
+            userSocketId: req.user.socketId,
+            status: ride.status
+        });
+
         // Send response immediately
         res.status(201).json(ride);
 
@@ -43,11 +50,11 @@ module.exports.createRide = async (req, res, next) => {
 
             console.log(`📍 Pickup coordinates: (${pickupCoordinates.lat}, ${pickupCoordinates.lng})`);
 
-            // Find riders within 5km radius
+            // Find riders within 15km radius
             const ridersInRadius = await mapService.getRiderInRadius(
                 pickupCoordinates.lat,
                 pickupCoordinates.lng,
-                5
+                15
             );
 
             console.log(`🎯 Found ${ridersInRadius.length} riders in radius`);
@@ -140,7 +147,7 @@ module.exports.getFare = async (req, res) => {
 }
 
 
-module.exports.confirmRide = async (req, res) => {
+module.exports.confirmRide = async (req, res, next) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
@@ -149,8 +156,8 @@ module.exports.confirmRide = async (req, res) => {
     const { rideId } = req.body;
 
     try {
-        // Use req.user._id instead of req.rider._id since this is for users confirming rides
-        const ride = await rideService.confirmRide({ rideId, user: req.user._id });
+        // Use req.rider._id since this route is protected by authRider middleware
+        const ride = await rideService.confirmRide({ rideId, rider: req.rider });
 
         // Send confirmation to the user
         if (ride && ride.user && ride.user.socketId) {
