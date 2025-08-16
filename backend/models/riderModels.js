@@ -18,7 +18,7 @@ const riderSchema = new mongoose.Schema({
         type: String,
         required: true,
         unique: true,
-        lowercase:true
+        lowercase: true
     },
     password: {
         type: String,
@@ -28,42 +28,45 @@ const riderSchema = new mongoose.Schema({
     socketId: {
         type: String,
     },
-    status:{
+    status: {
         type: String,
         enum: ['active', 'inactive'],
         default: 'inactive'
     },
 
-    vehicle:{
-        color:{
+    vehicle: {
+        color: {
             type: String,
             required: true,
         },
-        numberPlate:{
+        numberPlate: {
             type: String,
             required: true,
         },
-        vehicleType:{
-            type:String,
+        vehicleType: {
+            type: String,
             enum: ['bike', 'car'],
             required: true,
         }
     },
 
-    location:{
-        lat:{
+    location: {
+        lat: {
             type: Number,
         },
-        lng:{
+        lng: {
             type: Number,
         },
     }
 
 })
 
+// Add geospatial index for location-based queries
+riderSchema.index({ location: '2dsphere' });
+
 riderSchema.methods.generateAuthToken = function () {
-     const token = jwt.sign({_id: this._id }, process.env.SECRET_KEY,{expiresIn:'24h'})
-        return token;
+    const token = jwt.sign({ _id: this._id }, process.env.SECRET_KEY, { expiresIn: '24h' })
+    return token;
 }
 
 riderSchema.methods.comparePassword = async function (password) {

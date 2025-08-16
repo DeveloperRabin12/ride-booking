@@ -1,5 +1,5 @@
 
-import { Route,Routes } from 'react-router-dom'
+import { Route, Routes } from 'react-router-dom'
 import RiderLogin from './pages/RiderLogin'
 import UserLogin from './pages/UserLogin'
 import UserRegister from './pages/UserRegister'
@@ -12,37 +12,49 @@ import RiderHome from './pages/RiderHome'
 import RiderProtectedLogin from './pages/RiderProtectedLogin'
 import Riding from './pages/Riding'
 import RiderRiding from './pages/RiderRiding'
+import RiderProfile from './pages/RiderProfile'
+import RiderHistory from './pages/RiderHistory'
 
 const App = () => {
 
-  
+
   return (
-   <>
-    <Routes>
-      <Route path='/' element={<StartPage/>} />
-      <Route path ='/login' element = {<UserLogin/>}/>
-      <Route path ='/riding' element ={<Riding/>}/>
-      <Route path ='/rider-riding' element ={<RiderRiding/>}/>
-      <Route path='/userRegister' element = {<UserRegister/>}/>
-      <Route path='/riderLogin' element = {<RiderLogin/>}/>
-      <Route path='/riderRegister' element = {<RiderRegister/>}/>
-      <Route path = '/home' element = {
-        <SecureLogin>
-          <Home/>
+    <>
+      <Routes>
+        <Route path='/' element={<StartPage />} />
+        <Route path='/login' element={<UserLogin />} />
+        <Route path='/riding' element={<Riding />} />
+        <Route path='/rider-riding' element={<RiderRiding />} />
+        <Route path='/userRegister' element={<UserRegister />} />
+        <Route path='/riderLogin' element={<RiderLogin />} />
+        <Route path='/riderRegister' element={<RiderRegister />} />
+        <Route path='/home' element={
+          <SecureLogin>
+            <Home />
           </SecureLogin>
-      }/>
-      <Route path='/user/logout' element={
-        <SecureLogin>
-          <UserLogout/>
-        </SecureLogin>
-      }/>
-      <Route path='/riderHome' element={
-        // <RiderProtectedLogin>
-          <RiderHome/>
-        // </RiderProtectedLogin>
-        }/>
-    </Routes>
-   </>
+        } />
+        <Route path='/user/logout' element={
+          <SecureLogin>
+            <UserLogout />
+          </SecureLogin>
+        } />
+        <Route path='/riderHome' element={
+          <RiderProtectedLogin>
+            <RiderHome />
+          </RiderProtectedLogin>
+        } />
+        <Route path='/rider/profile' element={
+          <RiderProtectedLogin>
+            <RiderProfile />
+          </RiderProtectedLogin>
+        } />
+        <Route path='/rider/history' element={
+          <RiderProtectedLogin>
+            <RiderHistory />
+          </RiderProtectedLogin>
+        } />
+      </Routes>
+    </>
   )
 }
 

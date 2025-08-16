@@ -1,310 +1,337 @@
-import React from 'react'
-import { data, Link } from 'react-router-dom'
-import { useState,useRef } from 'react'
-import riderimg from '/src/assets/images/rider.png'
+import React, { useState, useEffect, useRef } from 'react'
+import { useSocket } from '../context/SocketContext'
+import { useRider } from '../context/RiderContext'
+import { gsap } from 'gsap'
 import RiderDetails from '../components/RiderDetails'
-import RidePopUp from '../components/RidePopUp'
-import { useGSAP } from '@gsap/react'
-import gsap from 'gsap'
-import ConfirmRidePopUp from '../components/ConfirmRidePopUp'
-import { useEffect } from 'react'
-import { SocketContext } from '../context/SocketContext'
-import { RiderDataContext } from '../context/RiderContext'
-import { useContext } from 'react'
-
-
-
+import RiderRideRequest from '../components/RiderRideRequest'
+import WaitingForPassenger from '../components/WaitingForPassenger'
+import FinishRide from '../components/FinishRide'
+import ConfirmedVehicle from '../components/ConfirmedVehicle'
+import Riding from '../components/Riding'
 
 const RiderHome = () => {
+  const { socket, isConnected } = useSocket();
+  const { rider } = useRider();
+  const [ridePopUpPanel, setRidePopUpPanel] = useState(false);
+  const [rideData, setRideData] = useState(null);
+  const [rideStatus, setRideStatus] = useState('idle'); // idle, looking, waiting, riding, finished
+  const [currentLocation, setCurrentLocation] = useState(null);
+  const [onlineTime, setOnlineTime] = useState(0);
+  const locationIntervalRef = useRef(null);
+  const timeIntervalRef = useRef(null);
 
+  // Debug: Log rider data to see what's available
+  useEffect(() => {
+    console.log('RiderHome - Current rider data:', rider);
+    console.log('RiderHome - Rider fullname:', rider?.fullname);
+    console.log('RiderHome - Rider name:', rider?.name);
+    console.log('RiderHome - Rider email:', rider?.email);
+  }, [rider]);
 
-  const ridePopUpPanelRef = useRef(null)
-  const confirmRidePopUpPanelRef = useRef(null)
+  // Debug: Log when dependencies change
+  useEffect(() => {
+    console.log('🔄 Dependencies changed:', {
+      socket: !!socket,
+      riderId: rider?._id,
+      isConnected: isConnected
+    });
+  }, [socket, rider?._id, isConnected]);
 
+  // Get current location and send to backend
+  const updateLocation = async () => {
+    try {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          async (position) => {
+            const location = {
+              lat: position.coords.latitude,
+              lng: position.coords.longitude
+            };
 
-  const [ridePopUpPanel, setRidePopUpPanel] = useState(true)
-  const [confirmRidePopUpPanel, setConfirmRidePopUpPanel] = useState(false)
-  const [ ride, setRide ] = useState(null)
+            setCurrentLocation(location);
 
-  const{socket } = useContext(SocketContext)
-  const { rider } = useContext(RiderDataContext)
+            // Send location update to backend via socket
+            if (socket && rider?._id) {
+              socket.emit('rider-location-update', {
+                riderId: rider._id,
+                location: location
+              });
+              console.log('📍 Location sent to backend:', location);
+            }
+          },
+          (error) => {
+            console.error('❌ Error getting location:', error);
+          },
+          {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 30000
+          }
+        );
+      }
+    } catch (error) {
+      console.error('❌ Error in updateLocation:', error);
+    }
+  };
 
+  // Update online time
+  useEffect(() => {
+    timeIntervalRef.current = setInterval(() => {
+      setOnlineTime(prev => prev + 1);
+    }, 60000); // Update every minute
 
+    return () => {
+      if (timeIntervalRef.current) {
+        clearInterval(timeIntervalRef.current);
+      }
+    };
+  }, []);
+
+  // Format online time
+  const formatOnlineTime = (seconds) => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    }
+    return `${minutes}m`;
+  };
+
+  // Handle new ride request
+  const handleNewRide = (data) => {
+    console.log('🚗 New ride request received:', data);
+    console.log('🔍 Ride data structure:', {
+      rideId: data.rideId,
+      _id: data._id,
+      user: data.user,
+      pickup: data.pickup
+    });
+    setRideData(data);
+    setRidePopUpPanel(true);
+    setRideStatus('looking');
+  };
+
+  // Handle ride acceptance
+  const handleAcceptRide = () => {
+    if (rideData && rider) {
+      console.log('✅ Ride accepted by rider:', rider.fullname.firstname);
+      setRideStatus('waiting');
+      setRidePopUpPanel(false);
+
+      // Notify user that ride is accepted
+      if (socket) {
+        console.log('📤 Sending ride-accepted event with data:', {
+          rideId: rideData.rideId,
+          riderId: rider._id,
+          riderName: `${rider.fullname.firstname} ${rider.fullname.lastname}`
+        });
+
+        socket.emit('ride-accepted', {
+          rideId: rideData.rideId,
+          riderId: rider._id,
+          riderName: `${rider.fullname.firstname} ${rider.fullname.lastname}`,
+          estimatedTime: '5-10 minutes'
+        });
+      }
+    }
+  };
+
+  // Handle ride rejection
+  const handleRejectRide = () => {
+    console.log('❌ Ride rejected');
+    setRidePopUpPanel(false);
+    setRideStatus('idle');
+    setRideData(null);
+  };
+
+  // Handle ride start
+  const handleStartRide = () => {
+    setRideStatus('riding');
+    console.log('🚀 Ride started');
+
+    // Notify user that ride has started
+    if (socket && rideData) {
+      socket.emit('ride-started', {
+        rideId: rideData.rideId,
+        riderId: rider._id,
+        riderName: `${rider.fullname.firstname} ${rider.fullname.lastname}`,
+        estimatedTime: '5-10 minutes'
+      });
+    }
+  };
+
+  // Handle ride finish
+  const handleFinishRide = () => {
+    setRideStatus('finished');
+    console.log('🏁 Ride finished');
+
+    // Calculate ride distance and duration (simplified - in real app, this would come from GPS tracking)
+    const estimatedDistance = Math.floor(Math.random() * 15) + 5; // 5-20 km (replace with real GPS calculation)
+    const estimatedDuration = Math.floor(Math.random() * 30) + 15; // 15-45 minutes (replace with real time tracking)
+
+    console.log(`📊 Ride completion data:`, {
+      distance: estimatedDistance,
+      duration: estimatedDuration
+    });
+
+    // Notify user that ride has finished
+    if (socket && rideData) {
+      socket.emit('ride-finished', {
+        rideId: rideData.rideId,
+        riderId: rider._id,
+        riderName: `${rider.fullname.firstname} ${rider.fullname.lastname}`,
+        distance: estimatedDistance,
+        duration: estimatedDuration
+      });
+    }
+  };
+
+  // Handle ride reset
+  const handleResetRide = () => {
+    setRideStatus('idle');
+    setRideData(null);
+    setRidePopUpPanel(false);
+    console.log('🔄 Ride reset to idle');
+  };
 
   useEffect(() => {
-    socket.emit('join',{
-      userId : rider._id,
-      userType: 'rider'
-    })
+    if (socket && rider?._id && isConnected) {
+      console.log('🔌 Rider connecting to socket...');
+      console.log('📊 Rider data available:', rider);
+      console.log('🔑 Rider ID being sent:', rider._id);
+      console.log('🔌 Socket connected:', socket.connected);
 
-     const updateLocation = () => {
-           if (!rider || !rider._id) return;
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(position => {
+      // Join as rider
+      socket.emit('join', {
+        userId: rider._id,
+        userType: 'rider'
+      });
 
-                    socket.emit('update-location-rider', {
-                        userId: rider._id,
-                        location: {
-                            lat: position.coords.latitude,
-                            lng: position.coords.longitude
-                        }
-                    })
-                     console.log("📍 Location sent:", position.coords.latitude, position.coords.longitude)
-                })
-            }
+      // Listen for new ride requests
+      socket.on('new-ride', handleNewRide);
+
+      // Listen for connection confirmations
+      socket.on('rider-connected', (data) => {
+        console.log('✅ Rider connected confirmation:', data);
+      });
+
+      socket.on('rider-reconnected', (data) => {
+        console.log('🔄 Rider reconnected confirmation:', data);
+      });
+
+      socket.on('location-updated', (data) => {
+        console.log('📍 Location update confirmation:', data);
+      });
+
+      socket.on('status-updated', (data) => {
+        console.log('🔄 Status update confirmation:', data);
+      });
+
+      socket.on('error', (error) => {
+        console.error('❌ Socket error:', error);
+      });
+
+      // Start location updates
+      updateLocation(); // Initial location
+      locationIntervalRef.current = setInterval(updateLocation, 15000); // Every 15 seconds
+
+      // Send initial status update
+      socket.emit('rider-status-update', {
+        riderId: rider._id,
+        status: 'active'
+      });
+
+      return () => {
+        console.log('🧹 Cleaning up rider socket listeners...');
+        socket.off('new-ride');
+        socket.off('rider-connected');
+        socket.off('rider-reconnected');
+        socket.off('location-updated');
+        socket.off('status-updated');
+        socket.off('error');
+
+        if (locationIntervalRef.current) {
+          clearInterval(locationIntervalRef.current);
         }
-
-
-
-        const locationInterval = setInterval(updateLocation, 50000); // Update every 5 seconds
-       updateLocation(); // Initial call to set location immediately
-       
-        // return () => {
-        //     clearInterval(locationInterval);
-        // }
-},[]);
-
-
-socket.on('new-ride', (data) => {
-  console.log(data)
-  setRide(data)
-  setRidePopUpPanel(true)
-})
-
-
-async function confirmRide(){
-  const response = await axios.post(`localhost:4000/rides/confirm`,{
-    rideId: ride._id,
-    riderId: rider._id
-
-  }
-  ,{
-    headers: {
-      Authorization: `Bearer ${localStorage.getItem('token')}`
+      };
+    } else {
+      console.log('❌ Cannot connect rider to socket:', {
+        socket: !!socket,
+        riderId: rider?._id,
+        rider: rider,
+        isConnected: isConnected
+      });
     }
-  })
-   setRidePopupPanel(false)
-        setConfirmRidePopupPanel(true)
+  }, [socket, rider?._id, isConnected]);
 
-}
-
-
-
-
-
-
-
-  useGSAP(function() {
-      if(ridePopUpPanel){
-         gsap.to(ridePopUpPanelRef.current,{
-         transform: 'translateY(0)',
-    })
-      }else{
-        gsap.to(ridePopUpPanelRef.current,{
-         transform: 'translateY(100%)',
-        })
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (locationIntervalRef.current) {
+        clearInterval(locationIntervalRef.current);
       }
-   
-
-  }, [ridePopUpPanel])
-
-  useGSAP(function() {
-      if(confirmRidePopUpPanel){
-         gsap.to(confirmRidePopUpPanelRef.current,{
-         transform: 'translateY(0)',
-    })
-      }else{
-        gsap.to(confirmRidePopUpPanelRef.current,{
-         transform: 'translateY(100%)',
-        })
+      if (timeIntervalRef.current) {
+        clearInterval(timeIntervalRef.current);
       }
-   
-  }, [confirmRidePopUpPanel])
+    };
+  }, []);
+
+  // Render different components based on ride status
+  const renderRideComponent = () => {
+    switch (rideStatus) {
+      case 'looking':
+        return (
+          <RiderRideRequest
+            rideData={rideData}
+            onAccept={handleAcceptRide}
+            onReject={handleRejectRide}
+          />
+        );
+      case 'waiting':
+        return (
+          <WaitingForPassenger
+            rideData={rideData}
+            onStart={handleStartRide}
+          />
+        );
+      case 'riding':
+        return (
+          <Riding
+            rideData={rideData}
+            onFinish={handleFinishRide}
+          />
+        );
+      case 'finished':
+        return (
+          <FinishRide
+            rideData={rideData}
+            onReset={handleResetRide}
+          />
+        );
+      default:
+        return <RiderDetails onlineTime={onlineTime} />;
+    }
+  };
 
   return (
-    <div>
+    <div className="relative h-screen bg-gray-100">
+      {/* Status Indicators - Positioned to avoid overlap */}
+      {/* Connection Status Badges */}
+      <div className="absolute top-20 right-4 flex gap-2">
+        <div className={`px-2 py-1 rounded-full text-xs font-medium ${isConnected ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+          {isConnected ? '🟢 Connected' : '🔴 Disconnected'}
+        </div>
+        <div className="px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+          {formatOnlineTime(onlineTime)}
+        </div>
+      </div>
 
-          <div className='h-screen '>
-            
-                      <div className='fixed p-6 top-0 flex items-center justify-between w-full'>
-                         <img className='w-16' src={riderimg} alt="" />
-                         <Link to='/home' className='fixed  h-12 w-12  top-7 bg-slate-100 flex right-4 items-center justify-center rounded-full '>
-                         <i className="text-2xl ri-logout-box-r-line"></i>
-                        </Link>
-                      </div>
-          
-                      <div className='h-3/5 '>
-                         <img className=' h-full w-full object-cover' src="https://miro.medium.com/v2/resize:fit:1400/0*gwMx05pqII5hbfmX.gif" alt="" />
-                      </div>
-
-                    <div className='h-2/5 p-4 mt-6 '>
-                         <RiderDetails/>
-                    </div>
-
-                    <div ref={ridePopUpPanelRef} className='fixed z-10 translate-y-full  bottom-0 bg-white p-3 w-full'>
-                        <RidePopUp 
-                        ride={ride}
-                        setRidePopUpPanel = {setRidePopUpPanel}
-                        confirmRide={confirmRide}
-                        setConfirmRidePopUpPanel = {setConfirmRidePopUpPanel}/>
-                   </div>
-                    <div ref={confirmRidePopUpPanelRef} className='fixed z-10 translate-y-full h-screen bottom-0 bg-white p-3 w-full'>
-                        <ConfirmRidePopUp setConfirmRidePopUpPanel = {setConfirmRidePopUpPanel} setRidePopUpPanel = {setRidePopUpPanel}/>
-                   </div>
-          </div>  
-          
+      {/* Main Content */}
+      <div className="h-full">
+        {renderRideComponent()}
+      </div>
     </div>
-  )
-}
+  );
+};
 
-export default RiderHome
-
-
-
-
-// import React, { useState, useRef, useEffect, useContext } from 'react'
-// import { Link } from 'react-router-dom'
-// import riderimg from '/src/assets/images/rider.png'
-// import RiderDetails from '../components/RiderDetails'
-// import RidePopUp from '../components/RidePopUp'
-// import { useGSAP } from '@gsap/react'
-// import gsap from 'gsap'
-// import ConfirmRidePopUp from '../components/ConfirmRidePopUp'
-// import { SocketContext } from '../context/SocketContext'
-// import { RiderDataContext } from '../context/RiderContext'
-
-// const RiderHome = () => {
-//   const ridePopUpPanelRef = useRef(null)
-//   const confirmRidePopUpPanelRef = useRef(null)
-
-//   const [ridePopUpPanel, setRidePopUpPanel] = useState(false)  // start false, popup hidden
-//   const [confirmRidePopUpPanel, setConfirmRidePopUpPanel] = useState(false)
-//   const [ride, setRide] = useState(null)
-
-//   const { socket } = useContext(SocketContext)
-//   const { rider } = useContext(RiderDataContext)
-
-//   // Join socket room, listen for new rides and update location periodically
-//   useEffect(() => {
-//     if (!socket || !rider?._id) return
-
-//     // Join rider room
-//     socket.emit('join', {
-//       userId: rider._id,
-//       userType: 'rider',
-//     })
-
-//     // Handle incoming new ride events
-//     const handleNewRide = (data) => {
-//       console.log('New ride received:', data)
-//       setRide(data)
-//     }
-//     socket.on('new-ride', handleNewRide)
-
-//     // Update location function
-//     const updateLocation = () => {
-//       if (!navigator.geolocation) return
-//       navigator.geolocation.getCurrentPosition((position) => {
-//         socket.emit('update-location-rider', {
-//           userId: rider._id,
-//           location: {
-//             lat: position.coords.latitude,
-//             lng: position.coords.longitude,
-//           },
-//         })
-//         console.log('📍 Location sent:', position.coords.latitude, position.coords.longitude)
-//       })
-//     }
-
-//     // Initial location update
-//     updateLocation()
-//     // Update location every 5 seconds (5000ms)
-//     const locationInterval = setInterval(updateLocation, 5000)
-
-//     // Cleanup on unmount
-//     return () => {
-//       socket.off('new-ride', handleNewRide)
-//       clearInterval(locationInterval)
-//     }
-//   }, [socket, rider?._id])
-
-//   // When ride changes, show popup
-//   useEffect(() => {
-//     if (ride) {
-//       setRidePopUpPanel(true)
-//     } else {
-//       setRidePopUpPanel(false)
-//     }
-//   }, [ride])
-
-//   // GSAP animations for ride popup
-//   useGSAP(() => {
-//     if (ridePopUpPanel) {
-//       gsap.to(ridePopUpPanelRef.current, { transform: 'translateY(0)' })
-//     } else {
-//       gsap.to(ridePopUpPanelRef.current, { transform: 'translateY(100%)' })
-//     }
-//   }, [ridePopUpPanel])
-
-//   // GSAP animations for confirm ride popup
-//   useGSAP(() => {
-//     if (confirmRidePopUpPanel) {
-//       gsap.to(confirmRidePopUpPanelRef.current, { transform: 'translateY(0)' })
-//     } else {
-//       gsap.to(confirmRidePopUpPanelRef.current, { transform: 'translateY(100%)' })
-//     }
-//   }, [confirmRidePopUpPanel])
-
-//   return (
-//     <div>
-//       <div className="h-screen">
-//         <div className="fixed p-6 top-0 flex items-center justify-between w-full">
-//           <img className="w-16" src={riderimg} alt="Rider" />
-//           <Link
-//             to="/home"
-//             className="fixed h-12 w-12 top-7 bg-slate-100 flex right-4 items-center justify-center rounded-full"
-//           >
-//             <i className="text-2xl ri-logout-box-r-line"></i>
-//           </Link>
-//         </div>
-
-//         <div className="h-3/5">
-//           <img
-//             className="h-full w-full object-cover"
-//             src="https://miro.medium.com/v2/resize:fit:1400/0*gwMx05pqII5hbfmX.gif"
-//             alt="Rider background"
-//           />
-//         </div>
-
-//         <div className="h-2/5 p-4 mt-6">
-//           <RiderDetails />
-//         </div>
-
-//         {/* Ride Popup */}
-//         <div
-//           ref={ridePopUpPanelRef}
-//           className="fixed z-10 translate-y-full bottom-0 bg-white p-3 w-full"
-//         >
-//           <RidePopUp
-//             ride={ride}
-//             setRidePopUpPanel={setRidePopUpPanel}
-//             setConfirmRidePopUpPanel={setConfirmRidePopUpPanel}
-//           />
-//         </div>
-
-//         {/* Confirm Ride Popup */}
-//         <div
-//           ref={confirmRidePopUpPanelRef}
-//           className="fixed z-10 translate-y-full h-screen bottom-0 bg-white p-3 w-full"
-//         >
-//           <ConfirmRidePopUp
-//             setConfirmRidePopUpPanel={setConfirmRidePopUpPanel}
-//             setRidePopUpPanel={setRidePopUpPanel}
-//           />
-//         </div>
-//       </div>
-//     </div>
-//   )
-// }
-
-// export default RiderHome
+export default RiderHome;
